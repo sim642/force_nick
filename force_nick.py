@@ -51,8 +51,13 @@ def nick_in_cb(data, signal, signal_data):
 	#weechat.prnt("", "nick_in: %s" % parsed)
 
 	if parsed["nick"] == mynick: # nick change worked
+		channels = weechat.infolist_get("irc_channel", "", server)
+		keys = {}
+		while weechat.infolist_next(channels):
+			keys[weechat.infolist_string(channels, "name")] = weechat.infolist_string(channels, "key")
+
 		for channel in servers[server]["channels"]:
-			weechat.hook_signal_send("irc_input_send", weechat.WEECHAT_HOOK_SIGNAL_STRING, "%s;;1;;/join -noswitch %s" % (server, channel))
+			weechat.hook_signal_send("irc_input_send", weechat.WEECHAT_HOOK_SIGNAL_STRING, "%s;;1;;/join -noswitch %s %s" % (server, channel, keys.get(channel, "")))
 
 		servers.pop(server)
 
