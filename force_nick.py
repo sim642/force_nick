@@ -1,10 +1,53 @@
-import weechat
+# -*- coding: utf-8 -*-
+#
+# Copyright (c) 2015 by Simmo Saan <simmo.saan@gmail.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+#
+# History:
+#
+# 2015-07-03, Simmo Saan <simmo.saan@gmail.com>
+#   version 0.2: ability to rejoin passworded channels
+# 2015-07-01, Simmo Saan <simmo.saan@gmail.com>
+#   version 0.1: initial script
+#
+
+"""
+Force nick change on channels which disallow it
+"""
+
+from __future__ import print_function
+
+SCRIPT_NAME = "force_nick"
+SCRIPT_AUTHOR = "Simmo Saan <simmo.saan@gmail.com>"
+SCRIPT_VERSION = "0.2"
+SCRIPT_LICENSE = "GPL3"
+SCRIPT_DESC = "Force nick change on channels which disallow it"
+
+IMPORT_OK = True
+
+try:
+	import weechat
+except ImportError:
+	print("This script must be run under WeeChat.")
+	print("Get WeeChat now at: http://www.weechat.org/")
+	IMPORT_OK = False
+
 import sys
 import re
-
-weechat.register("force_nick", "sim642", "0.1", "TODO", "Force nick change on channels which disallow it", "", "")
-#weechat.prnt("", "Hi, this is script")
-#weechat.prnt("", str(sys.version_info))
 
 servers = {}
 
@@ -20,17 +63,11 @@ def parse_message(signal_data):
 	return hashtable
 
 def channel_block(server, channel):
-	#global servers
-
-	#weechat.prnt("", "nickblock: %s,%s" % (server, channel))
-
 	servers[server]["channels"].append(channel)
 	weechat.hook_signal_send("irc_input_send", weechat.WEECHAT_HOOK_SIGNAL_STRING, "%s;;1;;/part %s" % (server, channel))
 	weechat.hook_signal_send("irc_input_send", weechat.WEECHAT_HOOK_SIGNAL_STRING, "%s;;1;;/nick %s" % (server, servers[server]["nick"]))
 
 def nick_out_cb(data, signal, signal_data):
-	#global servers
-
 	server = signal.split(",")[0]
 	parsed = parse_message(signal_data)
 	nick = parsed["args"][0]
@@ -47,8 +84,6 @@ def nick_in_cb(data, signal, signal_data):
 	server = signal.split(",")[0]
 	parsed = parse_message(signal_data)
 	mynick = weechat.info_get("irc_nick", server)
-
-	#weechat.prnt("", "nick_in: %s" % parsed)
 
 	if parsed["nick"] == mynick: # nick change worked
 		channels = weechat.infolist_get("irc_channel", "", server)
@@ -84,7 +119,9 @@ def freenode_cb(data, signal, signal_data):
 
 	return weechat.WEECHAT_RC_OK
 
-weechat.hook_signal("*,irc_out1_nick", "nick_out_cb", "")
-weechat.hook_signal("*,irc_in_nick", "nick_in_cb", "")
-weechat.hook_signal("*,irc_in_447", "unreal_cb", "")
-weechat.hook_signal("*,irc_in_435", "freenode_cb", "")
+if __name__ == "__main__" and IMPORT_OK:
+	if weechat.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", ""):
+		weechat.hook_signal("*,irc_out1_nick", "nick_out_cb", "")
+		weechat.hook_signal("*,irc_in_nick", "nick_in_cb", "")
+		weechat.hook_signal("*,irc_in_447", "unreal_cb", "")
+		weechat.hook_signal("*,irc_in_435", "freenode_cb", "")
