@@ -46,7 +46,6 @@ except ImportError:
 	print("Get WeeChat now at: http://www.weechat.org/")
 	IMPORT_OK = False
 
-import sys
 import re
 
 servers = {}
@@ -64,8 +63,9 @@ def parse_message(signal_data):
 
 def channel_block(server, channel):
 	servers[server]["channels"].append(channel)
-	weechat.hook_signal_send("irc_input_send", weechat.WEECHAT_HOOK_SIGNAL_STRING, "%s;;1;;/part %s" % (server, channel))
-	weechat.hook_signal_send("irc_input_send", weechat.WEECHAT_HOOK_SIGNAL_STRING, "%s;;1;;/nick %s" % (server, servers[server]["nick"]))
+	buffer = weechat.buffer_search("irc", server)
+	weechat.command(buffer, "/part %s" % channel)
+	weechat.command(buffer, "/nick %s" % servers[server]["nick"])
 
 def nick_out_cb(data, signal, signal_data):
 	server = signal.split(",")[0]
@@ -91,8 +91,9 @@ def nick_in_cb(data, signal, signal_data):
 		while weechat.infolist_next(channels):
 			keys[weechat.infolist_string(channels, "name")] = weechat.infolist_string(channels, "key")
 
+		buffer = weechat.buffer_search("irc", server)
 		for channel in servers[server]["channels"]:
-			weechat.hook_signal_send("irc_input_send", weechat.WEECHAT_HOOK_SIGNAL_STRING, "%s;;1;;/join -noswitch %s %s" % (server, channel, keys.get(channel, "")))
+			weechat.command(buffer, "/join -noswitch %s %s" % (channel, keys.get(channel, "")))
 
 		weechat.infolist_free(channels)
 
