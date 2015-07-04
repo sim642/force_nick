@@ -59,6 +59,8 @@ def nick_in_cb(data, signal, signal_data):
 		for channel in servers[server]["channels"]:
 			weechat.hook_signal_send("irc_input_send", weechat.WEECHAT_HOOK_SIGNAL_STRING, "%s;;1;;/join -noswitch %s %s" % (server, channel, keys.get(channel, "")))
 
+		weechat.infolist_free(channels)
+
 		servers.pop(server)
 
 	return weechat.WEECHAT_RC_OK
