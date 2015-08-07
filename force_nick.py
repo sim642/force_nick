@@ -19,6 +19,8 @@
 #
 # History:
 #
+# 2015-08-07, Simmo Saan <simmo.saan@gmail.com>
+#   version 0.3: options to control risky channel cycling
 # 2015-07-03, Simmo Saan <simmo.saan@gmail.com>
 #   version 0.2: ability to rejoin passworded channels
 # 2015-07-01, Simmo Saan <simmo.saan@gmail.com>
@@ -33,7 +35,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = "force_nick"
 SCRIPT_AUTHOR = "Simmo Saan <simmo.saan@gmail.com>"
-SCRIPT_VERSION = "0.2"
+SCRIPT_VERSION = "0.3"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Force nick change on channels which disallow it"
 
@@ -45,6 +47,15 @@ except ImportError:
 	print("This script must be run under WeeChat.")
 	print("Get WeeChat now at: http://www.weechat.org/")
 	IMPORT_OK = False
+
+SETTINGS = {
+	"cycle_detach": (
+		"off",
+		"automatically cycle channels which are not open in WeeChat"),
+	"cycle_key": (
+		"on",
+		"automatically cycle channels with key (+k) set")
+}
 
 import re
 
@@ -62,10 +73,24 @@ def parse_message(signal_data):
 	return hashtable
 
 def channel_block(server, channel):
-	servers[server]["channels"].append(channel)
-	buffer = weechat.buffer_search("irc", server)
-	weechat.command(buffer, "/part %s" % channel)
-	weechat.command(buffer, "/nick %s" % servers[server]["nick"])
+	fail = None
+
+	channels = weechat.infolist_get("irc_channel", "", "%s,%s" % (server, channel))
+	if weechat.infolist_next(channels):
+		if not weechat.config_string_to_boolean(weechat.config_get_plugin("cycle_key")) and weechat.infolist_string(channels, "key") != "":
+			fail = "cycle_key"
+	elif not weechat.config_string_to_boolean(weechat.config_get_plugin("cycle_detach")):
+		fail = "cycle_detach"
+
+	weechat.infolist_free(channels)
+
+	if fail:
+		weechat.prnt("", "%s: won't automatically cycle %s.%s: %s" % (SCRIPT_NAME, server, channel, fail))
+	else:
+		servers[server]["channels"].append(channel)
+		buffer = weechat.buffer_search("irc", server)
+		weechat.command(buffer, "/part %s" % channel)
+		weechat.command(buffer, "/nick %s" % servers[server]["nick"])
 
 def nick_out_cb(data, signal, signal_data):
 	server = signal.split(",")[0]
@@ -126,3 +151,9 @@ if __name__ == "__main__" and IMPORT_OK:
 		weechat.hook_signal("*,irc_in_nick", "nick_in_cb", "")
 		weechat.hook_signal("*,irc_in_447", "unreal_cb", "")
 		weechat.hook_signal("*,irc_in_435", "freenode_cb", "")
+
+		for option, value in SETTINGS.items():
+			if not weechat.config_is_set_plugin(option):
+				weechat.config_set_plugin(option, value[0])
+
+			weechat.config_set_desc_plugin(option, "%s (default: \"%s\")" % (value[1], value[0]))
