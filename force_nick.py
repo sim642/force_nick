@@ -20,6 +20,8 @@
 # History:
 #
 # 2015-08-07, Simmo Saan <simmo.saan@gmail.com>
+#   version 0.4: option for invite-only channels
+# 2015-08-07, Simmo Saan <simmo.saan@gmail.com>
 #   version 0.3: options to control risky channel cycling
 # 2015-07-03, Simmo Saan <simmo.saan@gmail.com>
 #   version 0.2: ability to rejoin passworded channels
@@ -35,7 +37,7 @@ from __future__ import print_function
 
 SCRIPT_NAME = "force_nick"
 SCRIPT_AUTHOR = "Simmo Saan <simmo.saan@gmail.com>"
-SCRIPT_VERSION = "0.3"
+SCRIPT_VERSION = "0.4"
 SCRIPT_LICENSE = "GPL3"
 SCRIPT_DESC = "Force nick change on channels which disallow it"
 
@@ -54,7 +56,10 @@ SETTINGS = {
 		"automatically cycle channels which are not open in WeeChat"),
 	"cycle_key": (
 		"on",
-		"automatically cycle channels with key (+k) set")
+		"automatically cycle passworded channels (+k)"),
+	"cycle_invite": (
+		"off",
+		"automatically cycle invite-only channels (+i)")
 }
 
 import re
@@ -74,12 +79,17 @@ def parse_message(signal_data):
 
 def channel_block(server, channel):
 	fail = None
+	config_cycle = lambda opt: weechat.config_string_to_boolean(weechat.config_get_plugin("cycle_%s" % opt))
 
 	channels = weechat.infolist_get("irc_channel", "", "%s,%s" % (server, channel))
 	if weechat.infolist_next(channels):
-		if not weechat.config_string_to_boolean(weechat.config_get_plugin("cycle_key")) and weechat.infolist_string(channels, "key") != "":
+		modes = weechat.infolist_string(channels, "modes")
+
+		if not config_cycle("key") and weechat.infolist_string(channels, "key") != "":
 			fail = "cycle_key"
-	elif not weechat.config_string_to_boolean(weechat.config_get_plugin("cycle_detach")):
+		elif not config_cycle("invite") and "i" in modes:
+			fail = "cycle_invite"
+	elif not config_cycle("detach"):
 		fail = "cycle_detach"
 
 	weechat.infolist_free(channels)
